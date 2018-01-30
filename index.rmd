@@ -23,6 +23,10 @@ options(htmltools.dir.version = FALSE)
 - Stochastic Neighbor Embedding
 - t-SNE
 - Results
+- Limitation
+- Extensions
+
+
 ---
 # Summary
 
@@ -111,15 +115,252 @@ $$\underline{X} \to \underline{Y}; \underline{X} \in \mathrel{R_k}, \underline{Y
 4. Calculate the conditional probabilities for the mappings.
   - Using $q_{i|j} = \frac{\exp{(-||y_i-y_j||^2)}}{\sum_{k \ne i} \exp{(-||y_i - y_k||^2)}}$
 6. Calculate the KLD between your $p$ and $q$s.
-  - Using $C = \sum_i\sum_jp_{i|j} \frac{p_{i|j}}{q_{i|j}}$
+  - Using $C = \sum_i\sum_jp_{i|j} \log\frac{p_{i|j}}{q_{i|j}}$
 7. Minimize this by gradient descent! 
 ---
 
+# Problems with SNE
 
+- Cost function is difficult to optimize
+  - Has exponentials to calculate
+  - The conditional probabilities are non-symmetric and thus require lots of sums to get the KLD
+- The crowding problem...
+
+---
+# The crowding problem
+
+.pull-left[
+Imagine an equalateral triangle in 2d space. All points are equadistant from eachother. 
+
+Now expand to three dimensions and add another point making a prism of equadistant points. How would you map this to a 2d space to show this relationship? 
+
+You can also think of a sphere of points, all equadistant from the center but not possible to squash to 2d without distorting sphere point distances. 
+]
+.pull-right[
+![](http://www.unit-conversion.info/img/triangular-prism.png)
+]
+
+
+---
 # T-distributed stochastic neighbor embedding
+
+What has changed from traditional SNE?
+
+- Symmetric cost function meaning $p_{i|j} = p_{j|i}$. 
+- The mapping conditional probabilities are now distributed as T with 1df (Cauchy).
+
+---
+# Symmetric cost function motivation
+
+One of the more costly parts of traditional SNE is having to calculate a bunch of KLDs and summing them. 
+
+This is due to the fact that the conditional probabilities are not symmetric. 
+
+If we make the conditional probabilities symmetric we can get away with just solving for a single KLD!
+
+$$\text{KL}(P|Q) = \sum_i\sum_jp_{i,j} \log\frac{p_{i,j}}{q_{i,j}}$$
+
+---
+# Symmetric cost implementation
+
+Solution: Make our conditionals symmetric by $p_{ij} = (p_{i|j} + p_{j|i})/2n$.
+
+This also has the benefit of simplifying the gradient.
+
+$$\frac{dC}{dy_i} = 4\sum_{j \ne i}(p_{ij} - q_{ij})(y_i - y_j)$$ 
+
+_This is nice._
+
+.center[
+<img src = 'gradient_figure.png' height = 300/>
+]
+
+
+---
+# T-distribution in the mapping
+
+Think back to the crowding problem, how could we compromise with this?
+
+You could add a repulsion in the springs such that they never clumped on top of eachother. 
+  - This is a super slow optimization if you've ever tried running physics simulation.
+  
+Another simpler solution is to make the tails of your mapping distribution fatter to give more flexibility in where the mapping points fall. 
+
+What distribution has nice fat tails? 
+  - The T-Distribution. (It's from all the beer).
+  
+---
+# Changing the mapping function
+
+.pull-left[
+__Original__
+
+$q_{i|j} = \frac{\exp{(-||y_i-y_j||^2)}}{\sum_{k \ne i} \exp{(-||y_i - y_k||^2)}}$
+]
+.pull-right[
+__New__
+
+$q_{ij} = \frac{(1 + ||y_i-y_j||^2)^{-1}}{\sum_{k \ne i} (1 + ||y_i - y_k||^2)^{-1}}$
+]
+
+What changed?
+
+- Notice how we don't have any $\exp$s in there? Our computer thanks us for that. 
+- Now is a joint and not conditional distribution. 
+
+New gradient (last one, I promise)
+
+$$\frac{dC}{dy_i} = 4\sum_{j \ne i}(p_{ij} - q_{ij})(y_i - y_j)(1 + ||y_i - y_j||^2)^{-1}$$
+---
+# Fun observation about Chauchy
+
+The numerator in $q_{ij}$: $(1 + ||y_i-y_j||^2)^{-1}$ is very close to the inverse square law when $||y_i-y_j|| >> 0$. 
+
+.center[
+<img src = "https://upload.wikimedia.org/wikipedia/commons/thumb/2/28/Inverse_square_law.svg/1200px-Inverse_square_law.svg.png" height = 250/>dr
+]
+
+This makes the map treat large clusters of far away points like super individuals and helps make the algorithm rather robust to scale changes. 
+
+_Every single thing ever is physics._ 
+---
+# Training and optimizing
+
+Optimization is non-convex. 
+  - Makes sense if you think about the crowding problem
+  
+Luckily, we have a easy to compute gradient and lots of techniques for descending that gradient. 
+
+There are some tricks recomended in the paper for improving this performance...
+
+---
+# Structure Stepping
+
+By scaling the high-dimension distances at first you can encourage the mapping to find large-scale organization first. 
+  - After some number of iteration you can go back to normal to allow the mapping to sort out the lower-scale structure.
+  
+Could this be improved on using something like a continuous scaling function?
+---
+# Early Compression
+
+Add an $L2$ norm to the const function that is proportional to the squared distances on the map from the origin.
+
+Makes things really want to cluster in the center and allows truly different values to find their way to the edges easier. 
+
+Like the scaling this is usually removed after some number of iterations.
 
 ---
 # Results
 
+All the math and logic is good and all, but does it actually work?
+__Yup!__
+
+For all the examples shown the same settings were used: 
+
+- Total of 1,000 gradient descent iteration.
+- Early exageration scaler of 4 applied for first 50 iterations.
+- Momentum parameter was set at 0.5 for first 250 iteration, 0.8 afterwards.
+- Adaptively decreased the learning rate (didn't go much into this).
+- Perplexity parameter set at 40.
+
+---
+#MNIST
+
+.pull-left[
+
+- Classic dataset for machine learning. Contains black and white hand-written digits from 0-9.
+- In order to speed up the algorithm/ not overwhelm the viewer with images the data is subset to 6000 images.
+
+]
+.pull-right[
+<img src = 'https://robust.vision/images/mnist.png' height = 450/>
+
+]
+---
+#MNIST results
+
+Compared to Sammon mapping TSNE does a remarkable job of clustering the digits from the dataset. 
+
+.pull-left[
+<img style = "margin-top: -25px" src = 'mnist_vs_sammon.png' height = 475/>
+]
+.pull-right[
+<img style = "margin-top: -25px" src = 'mnist_other.png' height = 475/>
+
+]
+
+---
+# Olivetti faces
+
+.pull-left[
+_There are ten different images of each of 40 distinct subjects. For some subjects, the images were taken at different times, varying the lighting, facial expressions (open / closed eyes, smiling / not smiling) and facial details (glasses / no glasses). All the images were taken against a dark homogeneous background with the subjects in an upright, frontal position (with tolerance for some side movement)._
+
+]
+.pull-right[
+<img src = 'https://cs.nyu.edu/~roweis/data/olivettifaces.gif' height = 450/>
+
+]
+---
+# Olivetti face results
+.center[
+<img src = 'faces.png' style = "margin-top: -25px" height = 550/>
+]
+
+---
+# COIL
+
+.pull-left[
+
+- __Co__lumbia __I__mage __L__ibrary
+
+- 1440 toy images, each of size 128×128, in 20 classes
+
+]
+.pull-right[
+<img src = 'http://www.cs.columbia.edu/CAVE/software/softlib/gif/20objects.jpg' height = 450/>
+
+]
+---
+# COIL results
+
+.center[
+<img src = 'coil.png' style = "margin-top: -25px" height = 550/>
+]
+
+---
+# Weaknesses
+
+- Slow on large datasets
+  - Pairwise distances take a long time to calculate when $n \to \infty$.
+  - They layout a solution to this using a graph-based approach to give approximate but fast pairwise distance estimates for points. 
+  - Should we be using this on huge data? What are the returns?
+- It's non-deterministic. 
+  - Can't be used as a dimensionality technique.
+  - Really can only be used in visualization contexts. 
+  - Is it useful?
 ---
 # Extesions?
+
+- Making it a dimensionality reduction technique?
+  - Fitting a flexible non-linear model to predict the output positions. 
+  - People have done this with neural networks a bit.
+  - Some modern methods seem to combine the best of both worlds.
+- What about changing the distribution?
+  - Currently uses gaussian distribution for the high-dimension data. 
+  - What if your input data is not gaussian but instead something with count data?
+  - E.g. RNA sequencing read numbers, binary or categorical EHR records. 
+  - We need to make sure we can calculate the gradient but should work with anything in the exponential family. 
+
+---
+# Extras
+
+---
+# Why not just make sigma constant?
+
+Remember the previous pairwise probability for the high dimension: $$p_{i|j} = \frac{\exp{(-||x_i-x_j||^2/2\sigma_i^2)}}{\sum_{k \ne i} \exp{(-||x_i - x_k||^2/2\sigma_i^2)}}$$
+
+We could make it symmetric by just taking away subscripts on the $\sigma$s, but then what happens if we have an outlier? 
+
+Say $||x_{\text{outlier}}-x_j|| >> 0, \forall j$. This causes the numerator of $p_{i|j}$ to be $\exp{(-\text{big}^2)}$, aka super small. 
+
+This causes the outlier to exert unneccesarily strong influence on point positions. 
