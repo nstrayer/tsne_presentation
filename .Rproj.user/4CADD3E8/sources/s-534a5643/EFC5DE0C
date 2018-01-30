@@ -1,0 +1,23 @@
+{
+    "collab_server" : "",
+    "contents" : "",
+    "created" : 1517258653717.000,
+    "dirty" : false,
+    "encoding" : "UTF-8",
+    "folds" : "",
+    "hash" : "0",
+    "id" : "EFC5DE0C",
+    "lastKnownWriteTime" : 1517280077,
+    "last_content_update" : 1517280077329,
+    "path" : "/media/nick/ssd/talks/tsne_presentation/index.rmd",
+    "project_path" : null,
+    "properties" : {
+        "cursorPosition" : "114,38",
+        "scrollLine" : "103",
+        "tempName" : "Untitled1"
+    },
+    "relative_order" : 1,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "r_markdown"
+}

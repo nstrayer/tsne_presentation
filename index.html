@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Visualizing Data using t-SNE</title>
+    <meta charset="utf-8">
+    <meta name="author" content="Nick Strayer" />
+    <link href="libs/remark-css/example.css" rel="stylesheet" />
+  </head>
+  <body>
+    <textarea id="source">
+class: center, middle, inverse, title-slide
+
+# Visualizing Data using t-SNE
+## An article review
+### Nick Strayer
+### 2016/12/12
+
+---
+
+
+
+
+# Organization
+
+- Summary
+- Motivation
+- Stochastic Neighbor Embedding
+- t-SNE
+- Results
+---
+# Summary
+
+- A visualization tool for high dimensional data
+  - Makes maps that 'reveal structure at multiple scales'
+
+- Stochastic method based upon older 'SNE' method
+
+- Two main contributions
+  1. Converting data matrix to pairwise similarities
+  2. Mapping those similarities to a lower-dimensional space
+---
+
+# Revealing structure at multiple scales
+
+What does this mean?
+
+&gt; Good for high dimensional data that lie on several different, but related, low-dimensional manifolds."
+
+.center[
+&lt;img src = "https://skybluetrades.net/blog/posts/2011/10/30/machine-learning/test-swiss-roll.png" height = 350 /&gt;
+]
+
+
+---
+# Motivation
+
+- Data is ever expanding!
+
+- No matter how much we may want, data will keep getting higher and higher dimension. 
+
+- We have tackled this problem in two different ways.
+  - Tools that can represent higher dimensions of data
+  - Those that map high dimensional data to a lower dimensional space.
+
+---
+# Tools for representing more fields
+
+- Chernoff faces, graph representations, etc.
+- These visualize more dimensions but they still only have a finite amount of dimensions they can represnt. 
+  - You're not going to visualize 5k protein expression profiles with a Chernoff face.
+  
+![Chernoff Face](chernoff.png)
+---
+# Mapping to a lower dimension
+
+- Let's use some math to lower the dimensionality of our data. 
+
+`$$\underline{X} \to \underline{Y}; \underline{X} \in \mathrel{R_k}, \underline{Y} \in \mathrel{R_{2 \text{ or } 3}}$$`
+
+- Classic example is PCA. 
+  - Transformation is linear and doesn't pay attention to manifolds or local structure at all. 
+  - Just maximizes variance. 
+  
+&gt; For high-dimensional data that lies on or near a low-dimensional, non-linear manifold it is usually more important to keep the low-dimensional representation of very similar datapoints close together, which is typically not possible with linear mapping.
+
+
+---
+# Non-linear mapping
+
+- Sammon mappings, Maxmimum Variance Unfolding, Laplacien Eigenmaps, Isomap, etc.
+
+- Have existed for a while but leave a bit to be desired. 
+
+- Maxmimum Variance Unfolding can't seperate MNIST at all.
+
+- All the papers introducing them show great results on simulated data, but real world results never panned out. 
+
+---
+# Stochastic neighbor embedding (SNE)
+
+- Precursor to t-sne and very similar
+
+- Converts high-dimensional euclidean distances between two observations to conditional probabilties.
+
+- Purely guassian (more on this shortly.)
+
+---
+# SNE algorithm
+
+1. Calculate pairwise distances of all points in your dataset. 
+2. Randomly initialize map positions `\(y_i\)` for all `\(i \in X\)`.
+2. Plop a multi-dimensional gaussian distribution on top of each datapoint in your high-dimensional space
+3. For each pair of `\(x_i\)` to `\(x_j\)` calculate `\(p_{i|j}\)`.
+  - Using `\(p_{i|j} = \frac{\exp{(-||x_i-x_j||^2/2\sigma_i^2)}}{\sum_{k \ne i} \exp{(-||x_i - x_k||^2/2\sigma_i^2)}}\)`
+4. Calculate the conditional probabilities for the mappings.
+  - Using `\(q_{i|j} = \frac{\exp{(-||y_i-y_j||^2)}}{\sum_{k \ne i} \exp{(-||y_i - y_k||^2)}}\)`
+6. Calculate the KLD between your `\(p\)` and `\(q\)`s.
+  - Using `\(C = \sum_i\sum_jp_{i|j} \frac{p_{i|j}}{q_{i|j}}\)`
+7. Minimize this by gradient descent! 
+---
+
+
+# T-distributed stochastic neighbor embedding
+
+---
+# Results
+
+---
+# Extesions?
+    </textarea>
+<script src="https://remarkjs.com/downloads/remark-latest.min.js"></script>
+<script>var slideshow = remark.create({
+"highlightStyle": "github",
+"highlightLines": true,
+"countIncrementalSlides": false
+});
+if (window.HTMLWidgets) slideshow.on('afterShowSlide', function (slide) {window.dispatchEvent(new Event('resize'));});
+(function() {var d = document, s = d.createElement("style"), r = d.querySelector(".remark-slide-scaler"); if (!r) return; s.type = "text/css"; s.innerHTML = "@page {size: " + r.style.width + " " + r.style.height +"; }"; d.head.appendChild(s);})();</script>
+
+<script type="text/x-mathjax-config">
+MathJax.Hub.Config({
+  tex2jax: {
+    skipTags: ['script', 'noscript', 'style', 'textarea', 'pre']
+  }
+});
+</script>
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+(function () {
+  var script = document.createElement('script');
+  script.type = 'text/javascript';
+  script.src  = 'https://cdn.bootcss.com/mathjax/2.7.1/MathJax.js?config=TeX-MML-AM_CHTML';
+  if (location.protocol !== 'file:' && /^https?:/.test(script.src))
+    script.src  = script.src.replace(/^https?:/, '');
+  document.getElementsByTagName('head')[0].appendChild(script);
+})();
+</script>
+  </body>
+</html>
